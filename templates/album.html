@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+<head>
+  <title>Albums</title>
+</head>
+<body>
+  <h1>Your Albums</h1>
+  {% if albums %}
+    <h2>Choose an album</h2>
+    <ul>
+      {% for album in albums %}
+      <li><a href="/albumphoto?album_id={{ album[1] }}">{{ album[0] }}</a>
+        <br>
+        <br>
+        <form method="POST" action="/deletealbum">
+          <input type="hidden" name="album_id" value="{{ album[1] }}">
+          <button type="submit">Delete {{ album[0] }}?</button>
+        </form>
+        <br>
+        <br>
+      </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>You should create an <a href='/createalbum'>album!</a></p>
+  {% endif %}
+  <p><a href="/createalbum">Create an album?</a></p>
+  <a href='/'>Home</a>
+</body>
+</html>
+

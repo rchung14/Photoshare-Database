@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+<head>
+  <title>{{ album_name }}</title>
+  <script>
+    function refreshPage() {
+      location.reload();
+    }
+  </script>
+</head>
+<body>
+  <h1>{{ album_name }}</h1>
+  <p><a href="/upload">Upload a photo</a></p>
+  <h2>Your Photos</h2>
+  {% if photos %}
+    {% for photo in photos %}
+      <form action="/albumphoto" method="POST">
+        <li style="list-style: none;">{{photo[2]}}
+          <br>
+          <br>
+          {% if message %}
+            <h4>{{message}}!</h4>
+          {% endif %}
+          <img style='border: 1px solid rgba(87, 87, 87, 0.419); border-radius: 8px;' src='data:image/jpg;base64, {{ base64.b64encode(photo[0]).decode("ascii") }}'/><br />
+          <input type="hidden" name="photo_id" value="{{ photo[1] }}">
+          <form action="/deletephoto" method="POST">
+            <input type="hidden" name="album_id" value="{{ album_id }}">
+            <input type="hidden" name="photo_id" value="{{ photo[1] }}">
+            <button type="submit">Delete photo?</button>
+          </form>
+          <br>
+          <form action="/albumphoto" method="POST">
+            <input type="hidden" name="album_id" value="{{ album_id }}">
+            <input type="hidden" name="photo_id" value="{{ photo[1] }}">
+            <button type="submit">Like</button>
+            {% if likes[photo[1]] %}
+              Liked by: {{ likes[photo[1]] }}
+            {% else %}
+              No likes yet
+            {% endif %}
+          </form>
+          <br>
+          <br>
+        </li>
+      </form>
+      <hr>
+      <br>
+    {% endfor %}
+  {% endif %}
+  <br>
+  <button onclick="history.back()">Back</button><br />
+  <a href='/'>Home</a>
+</body>
+</html>

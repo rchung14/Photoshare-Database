@@ -1,0 +1,26 @@
+<head>
+    <title>Upload a photo!</title>
+</head>
+<body>
+    <div class="title">
+        <h1>Upload a photo to Photoshare</h1>
+    </div>
+    <form action="/upload" enctype="multipart/form-data" method="POST">
+        <label for="photo">Select photo:</label>
+        <input type="file" name="photo" required='true' /><br />
+        <label for="caption">Please caption:</label>
+        <input type="text" name="caption" required='true' /><br />
+        <label for="tags">Add some tags:</label>
+        <input type="text" name="tags" multiple/>(separate tags by comma)<br />
+        <label for="album">Select album:</label>
+        <select name="album_id" required='true'>
+            {% for album in albums %}
+            <option value="{{ album[1] }}">{{ album[0] }}</option>
+            {% endfor %}
+        </select><br />
+        <button onclick="history.back()">Back</button>
+        <input type="submit" value="Upload" />
+        <p>Don't see an album? <a href="/createalbum">Create an album</a></p>
+        <a href='/'>Home</a>
+    </form>
+</body>

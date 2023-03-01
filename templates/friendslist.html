@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Friends</title>
+    </head>
+    <body>
+        <h1>Friends</h1>
+        <h2>Add a friend!</h2>
+        {% if message %}
+            <h4>{{message}}!</h4>
+        {% endif %}
+        <form action="/addfriend" method="POST">
+            <label for="friendemail">Enter Email</label>
+            <input type="friendemail" name="friendemail" required="true">
+            <input type="hidden" name="uid" value="{{ uid }}">
+            <input type="submit">
+        </form>
+        <h2>Your Friends</h2>
+        <ul>
+            {% if friendname %}
+                {% for friend in friendname %}
+                    <li>{{ friendname[friend] }} 
+                        <form action="/removefriend" method="POST">
+                            <input type="hidden" name="friend_id" value="{{ friend }}">
+                            <input type="submit" value="Remove Friend">
+                        </form>
+                    </li>
+                {% endfor %}
+            {% else %}
+                <li>No friends yet.</li>
+            {% endif %}
+        </ul>
+        <a href="/">Home</a>
+    </body>
+</html>
