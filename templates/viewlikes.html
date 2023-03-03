@@ -1,0 +1,21 @@
+<!doctype html>
+<html>
+    <head>
+        <title>Photo Likes!</title>
+    </head>
+    <body>
+        <div class="title">
+            <h1>Users who liked this photo</h1>
+        </div>
+        {% if photolikers %}
+            {% for likers in photolikers %}
+                <li>{{ photolikers[likers] }} </li>
+            {% endfor %}
+            <br>
+        {% else %}
+            <h4>Nobody has liked yet!</h4>
+        {% endif %}
+    </body>
+    <button onclick="history.back()">Back</button><br />
+    <a href='/'>Home</a>
+</html>

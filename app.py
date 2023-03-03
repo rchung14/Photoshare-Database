@@ -182,6 +182,12 @@ def getPictureLikes(photo_id):
 	cursor.execute("SELECT COUNT(*) FROM Likes WHERE picture_id = '{0}'".format(photo_id)) 
 	return cursor.fetchone()[0]
 
+def getWhoLiked(photo_id): 
+	cursor = conn.cursor() 
+	cursor.execute("SELECT user_id FROM Likes WHERE picture_id = '{0}'".format(photo_id))
+	results = cursor.fetchall() 
+	return [row[0] for row in results]
+
 def getAlbumName(album_id): 
 	cursor = conn.cursor() 
 	cursor.execute("SELECT Name FROM Albums WHERE album_id = '{0}'".format(album_id))
@@ -266,7 +272,6 @@ def albumphoto():
         # Add user and photo_id to Likes table
         cursor.execute('''INSERT INTO Likes (user_id, picture_id) VALUES (%s, %s)''', (uid, photo_id))
         conn.commit()
-        cursor.close()
         return redirect(request.referrer)
     else:
         uid = getUserIdFromEmail(flask_login.current_user.id)
@@ -280,6 +285,32 @@ def albumphoto():
             likes[photo_ids[photo]] = getPictureLikes(photo_ids[photo])
         return render_template('albumphoto.html', album_name=album_name, \
                                album_id=album_id, photos=photos, likes=likes, base64=base64)
+    
+@app.route('/unlike', methods=['POST'])
+def unlike(): 
+	album_id = request.form.get('album_id')
+	photo_id = request.form.get('photo_id')
+	uid = getUserIdFromEmail(flask_login.current_user.id)
+	# Check if user has liked this photo before
+	cursor = conn.cursor()
+	cursor.execute('''SELECT * FROM Likes WHERE user_id = %s AND picture_id = %s''', (uid, photo_id))
+	if cursor.fetchone() is not None:
+		cursor.execute('''DELETE FROM Likes WHERE user_id = %s AND picture_id = %s''', (uid, photo_id))
+		conn.commit()
+		return redirect(request.referrer)
+	else: 
+		return redirect(request.referrer)
+
+@app.route('/viewlikes', methods=['GET'])
+def viewlikes(): 
+	photo_id = request.args.get('photo_id')
+	uid = getUserIdFromEmail(flask_login.current_user.id)
+	likers = getWhoLiked(photo_id)
+	photolikers = {}
+	for likes in range(len(likers)):
+		fname, lname = getUsersName(likers[likes])
+		photolikers[likers[likes]] = f"{fname} {lname}"
+	return render_template('viewlikes.html', likers=likers, uid=uid, photo_id=photo_id, photolikers=photolikers)
 
 @app.route('/createalbum', methods=['GET', 'POST'])
 def createalbum(): 
