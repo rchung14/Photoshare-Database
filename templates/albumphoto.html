@@ -21,6 +21,14 @@
           {% if message %}
             <h4>{{message}}!</h4>
           {% endif %}
+          {% if tags.get(photo[1]) %}
+            Tags:
+            {% for tag in tags[photo[1]] %}
+              {{ tag }};
+            {% endfor %}
+          {% endif %}
+          <br>
+          <br>
           <img style='border: 1px solid rgba(87, 87, 87, 0.419); border-radius: 8px;' src='data:image/jpg;base64, {{ base64.b64encode(photo[0]).decode("ascii") }}'/><br />
           <form action="/deletephoto" method="POST">
             <input type="hidden" name="album_id" value="{{ album_id }}">

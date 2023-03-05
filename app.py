@@ -199,6 +199,18 @@ def getPhotoId(album_id):
 	results = cursor.fetchall()
 	return [row[0] for row in results]
 
+def getTagIds(photo_id):
+    cursor = conn.cursor()
+    cursor.execute("SELECT tag_id FROM Tagged WHERE photo_id = %s", (photo_id,))
+    tag_ids = [row[0] for row in cursor.fetchall()]
+    return tag_ids
+
+def getPhotoTag(photo_id):
+    cursor = conn.cursor()
+    cursor.execute('''SELECT Tags.tag_name FROM Tags JOIN Tagged ON Tags.tag_id = Tagged.tag_id WHERE \
+		Tagged.photo_id = %s ''', (photo_id,))
+    return [row[0] for row in cursor.fetchall()]
+
 def tagFormat(tags): 
 	tags_list = [tag.strip().lower() for tag in tags.split(',')]
 	return tags_list
@@ -220,6 +232,18 @@ def protected():
 
 #begin photo uploading code
 # photos uploaded using base64 encoding so they can be directly embeded in HTML
+
+# to do: 
+# - contribution score --> upload count/decrement when they delete photo, comments on other users posts 
+# - make albums public for everyone to see 
+# - make so that only owners can upload/delete their profile /
+# - view most popular tags --> 3 tags with most photos with it
+# - photo search with tags --> users can search 'friends boston' and display photos with both 
+# - visitors and users leave comments (registered + 1 contribution score)
+# - users should be able to search for photos with comments 
+# - friend recommendations --> recommend friends of friends 
+# - you-may-also like --> take tags most used by uploaded photo owner and provide similar photos to theirs 
+
 ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif'])
 def allowed_file(filename):
 	return '.' in filename and filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS
@@ -234,16 +258,19 @@ def upload_file():
 		uid = getUserIdFromEmail(flask_login.current_user.id)
 		imgfile = request.files['photo']
 		photo_data = imgfile.read()
-		#DO TAGS!!!!
 		tags = request.form.get('tags')
 		tags_list = tagFormat(tags)
-		for tag in tags_list: 
-			cursor = conn.cursor()
-			cursor.execute('''INSERT INTO Tags (tag_name) VALUES (%s)''', (tag,))
-			conn.commit()
 		cursor = conn.cursor()
 		cursor.execute('''INSERT INTO Pictures (user_id, caption, imgdata, album_id) VALUES (%s, %s, %s, %s)''', (uid, caption, photo_data, album_id))
 		conn.commit()
+		picture_id = cursor.lastrowid
+		for tag in tags_list: 
+			cursor = conn.cursor()
+			cursor.execute('''INSERT INTO Tags (tag_name) VALUES (%s)''', (tag,))
+			cursor.execute('''SELECT tag_id FROM Tags WHERE tag_name=%s''', (tag,))
+			tag_id = cursor.fetchone()[0]
+			cursor.execute('''INSERT INTO Tagged (photo_id, tag_id) VALUES (%s, %s)''', (picture_id, tag_id))
+			conn.commit()
 		return redirect(url_for('albumphoto', album_id=album_id))
 	#The method is GET so we return a  HTML form to upload the a photo.
 	else:
@@ -260,31 +287,32 @@ def album():
 
 @app.route('/albumphoto', methods=['GET', 'POST'])
 def albumphoto():
-    if request.method == 'POST': 
-        album_id = request.args.get('album_id')
-        photo_id = request.form.get('photo_id')
-        uid = getUserIdFromEmail(flask_login.current_user.id)
-        # Check if user has liked this photo before
-        cursor = conn.cursor()
-        cursor.execute('''SELECT * FROM Likes WHERE user_id = %s AND picture_id = %s''', (uid, photo_id))
-        if cursor.fetchone() is not None:
-            return redirect(request.referrer)
-        # Add user and photo_id to Likes table
-        cursor.execute('''INSERT INTO Likes (user_id, picture_id) VALUES (%s, %s)''', (uid, photo_id))
-        conn.commit()
-        return redirect(request.referrer)
-    else:
-        uid = getUserIdFromEmail(flask_login.current_user.id)
-        album_id = request.args.get('album_id')
-        album_name = getAlbumName(album_id)
-        photos = getUsersPhotos(uid, album_id)
-        photo_ids = getPhotoId(album_id)
-		# FINISH LIKES!!!!
-        likes = {}
-        for photo in range(len(photo_ids)): 
-            likes[photo_ids[photo]] = getPictureLikes(photo_ids[photo])
-        return render_template('albumphoto.html', album_name=album_name, \
-                               album_id=album_id, photos=photos, likes=likes, base64=base64)
+	if request.method == 'POST': 
+		album_id = request.args.get('album_id')
+		photo_id = request.form.get('photo_id')
+		uid = getUserIdFromEmail(flask_login.current_user.id)
+		# Check if user has liked this photo before
+		cursor = conn.cursor()
+		cursor.execute('''SELECT * FROM Likes WHERE user_id = %s AND picture_id = %s''', (uid, photo_id))
+		if cursor.fetchone() is not None:
+			return redirect(request.referrer)
+		# Add user and photo_id to Likes table
+		cursor.execute('''INSERT INTO Likes (user_id, picture_id) VALUES (%s, %s)''', (uid, photo_id))
+		conn.commit()
+		return redirect(request.referrer)
+	else:
+		uid = getUserIdFromEmail(flask_login.current_user.id)
+		album_id = request.args.get('album_id')
+		album_name = getAlbumName(album_id)
+		photos = getUsersPhotos(uid, album_id)
+		photo_ids = getPhotoId(album_id)
+		tags = {}
+		likes = {}
+		for photo in range(len(photo_ids)): 
+			tags[photo_ids[photo]] = getPhotoTag(photo_ids[photo])
+			likes[photo_ids[photo]] = getPictureLikes(photo_ids[photo])
+		return render_template('albumphoto.html', album_name=album_name, \
+						album_id=album_id, photos=photos, tags=tags, likes=likes, base64=base64)
     
 @app.route('/unlike', methods=['POST'])
 def unlike(): 
@@ -309,7 +337,7 @@ def viewlikes():
 	photolikers = {}
 	for likes in range(len(likers)):
 		fname, lname = getUsersName(likers[likes])
-		photolikers[likers[likes]] = f"{fname} {lname}"
+		photolikers[likers[likes]] = f"{fname} {lname}" 
 	return render_template('viewlikes.html', likers=likers, uid=uid, photo_id=photo_id, photolikers=photolikers)
 
 @app.route('/createalbum', methods=['GET', 'POST'])
@@ -357,8 +385,6 @@ def addfriend():
 		uid2 = getUserIdFromEmail(request.form.get('friendemail'))
 		cursor = conn.cursor() 
 		cursor.execute('''INSERT INTO Friendship (UID1, UID2) VALUES (%s, %s)''', (uid, uid2))
-		conn.commit()
-		cursor = conn.cursor()
 		cursor.execute('''INSERT INTO Friendship (UID1, UID2) VALUES (%s, %s)''', (uid2, uid))
 		conn.commit()
 		return redirect(url_for('friendslist'))
@@ -370,8 +396,6 @@ def removefriend():
 	friend_id = request.form.get('friend_id')
 	cursor = conn.cursor()
 	cursor.execute('''DELETE FROM Friendship WHERE UID1 = %s OR UID2 = %s''', (uid, friend_id))
-	conn.commit()
-	cursor = conn.cursor()
 	cursor.execute('''DELETE FROM Friendship WHERE UID1 = %s OR UID2 = %s''', (friend_id, uid))
 	conn.commit()
 	return redirect(url_for('friendslist'))
