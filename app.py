@@ -211,6 +211,17 @@ def getPhotoTag(photo_id):
 		Tagged.photo_id = %s ''', (photo_id,))
     return [row[0] for row in cursor.fetchall()]
 
+def getPhotoComments(photo_id):
+    cursor = conn.cursor()
+    cursor.execute('''SELECT Comments.text, Users.email, Comments.date FROM Comments JOIN Users ON \
+		Comments.user_id = Users.user_id WHERE Comments.picture_id = %s ORDER BY Comments.date DESC''', (photo_id,))
+    comments = []
+    for row in cursor.fetchall():
+        comment = {'text': row[0], 'user_email': row[1], 'date': row[2]}
+        comments.append(comment)
+    print(comments)
+    return comments
+
 def tagFormat(tags): 
 	tags_list = [tag.strip().lower() for tag in tags.split(',')]
 	return tags_list
@@ -285,35 +296,38 @@ def album():
 	uid = getUserIdFromEmail(flask_login.current_user.id)
 	return render_template('album.html', albums=getUsersAlbums(uid))
 
-@app.route('/albumphoto', methods=['GET', 'POST'])
+@app.route('/albumphoto', methods=['GET'])
 def albumphoto():
-	if request.method == 'POST': 
-		album_id = request.args.get('album_id')
-		photo_id = request.form.get('photo_id')
-		uid = getUserIdFromEmail(flask_login.current_user.id)
-		# Check if user has liked this photo before
-		cursor = conn.cursor()
-		cursor.execute('''SELECT * FROM Likes WHERE user_id = %s AND picture_id = %s''', (uid, photo_id))
-		if cursor.fetchone() is not None:
-			return redirect(request.referrer)
-		# Add user and photo_id to Likes table
-		cursor.execute('''INSERT INTO Likes (user_id, picture_id) VALUES (%s, %s)''', (uid, photo_id))
-		conn.commit()
-		return redirect(request.referrer)
-	else:
-		uid = getUserIdFromEmail(flask_login.current_user.id)
-		album_id = request.args.get('album_id')
-		album_name = getAlbumName(album_id)
-		photos = getUsersPhotos(uid, album_id)
-		photo_ids = getPhotoId(album_id)
-		tags = {}
-		likes = {}
-		for photo in range(len(photo_ids)): 
-			tags[photo_ids[photo]] = getPhotoTag(photo_ids[photo])
-			likes[photo_ids[photo]] = getPictureLikes(photo_ids[photo])
-		return render_template('albumphoto.html', album_name=album_name, \
-						album_id=album_id, photos=photos, tags=tags, likes=likes, base64=base64)
+	uid = getUserIdFromEmail(flask_login.current_user.id)
+	album_id = request.args.get('album_id')
+	album_name = getAlbumName(album_id)
+	photos = getUsersPhotos(uid, album_id)
+	photo_ids = getPhotoId(album_id)
+	tags = {}
+	likes = {}
+	for photo in range(len(photo_ids)): 
+		tags[photo_ids[photo]] = getPhotoTag(photo_ids[photo])
+		likes[photo_ids[photo]] = getPictureLikes(photo_ids[photo])
+		comments = getPhotoComments(photo_ids[photo])
+	return render_template('albumphoto.html', album_name=album_name, \
+					album_id=album_id, photos=photos, comments=comments, \
+						  tags=tags, likes=likes, base64=base64)
     
+@app.route('/like', methods=['POST'])
+def like():
+	album_id = request.args.get('album_id')
+	photo_id = request.form.get('photo_id')
+	uid = getUserIdFromEmail(flask_login.current_user.id)
+	# Check if user has liked this photo before
+	cursor = conn.cursor()
+	cursor.execute('''SELECT * FROM Likes WHERE user_id = %s AND picture_id = %s''', (uid, photo_id))
+	if cursor.fetchone() is not None:
+		return redirect(request.referrer)
+	# Add user and photo_id to Likes table
+	cursor.execute('''INSERT INTO Likes (user_id, picture_id) VALUES (%s, %s)''', (uid, photo_id))
+	conn.commit()
+	return redirect(request.referrer)
+
 @app.route('/unlike', methods=['POST'])
 def unlike(): 
 	album_id = request.form.get('album_id')
@@ -410,6 +424,17 @@ def friendslist():
 		fname, lname = getUsersName(friendids[friend])
 		friendname[friendids[friend]] = f"{fname} {lname}"
 	return render_template('friendslist.html', friendname=friendname, uid=uid)
+
+@app.route('/comment', methods=['POST'])
+def comment(): 
+    comment_text = request.form.get('comment')
+    photo_id = request.form.get('photo_id')
+    uid = getUserIdFromEmail(flask_login.current_user.id)
+    commentdate = datetime.now()
+    cursor = conn.cursor()
+    cursor.execute('''INSERT INTO Comments (text, date, user_id, picture_id) VALUES (%s, %s, %s, %s)''', (comment_text, commentdate, uid, photo_id))
+    conn.commit()
+    return redirect(request.referrer)
 
 #default page
 @app.route("/", methods=['GET'])

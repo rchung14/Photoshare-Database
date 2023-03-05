@@ -45,7 +45,7 @@
           <br>
           <br>
           <!-- dynamic like/unlike button try ifelse after use cases -->  
-          <form action="/albumphoto" method="POST">
+          <form action="/like" method="POST">
             <input type="hidden" name="album_id" value="{{ album_id }}">
             <input type="hidden" name="photo_id" value="{{ photo[1] }}">
             <button type="submit">Like</button>
@@ -56,7 +56,18 @@
             <button type="submit">Unlike</button>
           </form>
           <br>
-          <br>
+          {% for comment in comments %}
+            <h4>{{ comment['user_email'] }} on {{ comment['date'] }}</h4>
+            <div style="margin-left: 20px;">
+              <p>"{{ comment['text'] }}"</p>
+            </div>
+          {% endfor %}
+          <form action="/comment" method="POST">
+            <label for="comment">Comment:</label><br>
+            <textarea id="comment" name="comment" rows="1" cols="30"></textarea><br>
+            <input type="hidden" name="photo_id" value="{{ photo[1] }}">
+            <input type="submit" value="Post Comment">
+          </form>
         </li>
       </form>
       <hr>
