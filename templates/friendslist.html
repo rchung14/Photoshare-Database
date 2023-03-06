@@ -13,7 +13,6 @@
         <form action="/addfriend" method="POST">
             <label for="friendemail">Enter Email</label>
             <input type="friendemail" name="friendemail" required="true">
-            <input type="hidden" name="uid" value="{{ uid }}">
             <input type="submit">
         </form>
         <h2>Your Friends</h2>
@@ -21,14 +20,33 @@
             {% if friendname %}
                 {% for friend in friendname %}
                     <li>{{ friendname[friend] }} 
+                        <br>
                         <form action="/removefriend" method="POST">
                             <input type="hidden" name="friend_id" value="{{ friend }}">
                             <input type="submit" value="Remove Friend">
                         </form>
+                        <br>
                     </li>
                 {% endfor %}
             {% else %}
                 <li>No friends yet.</li>
+            {% endif %}
+        </ul>
+        <h2>Recommended Friends</h2>
+        <ul>
+            {% if recommended_friends %}
+                {% for friend_id, friend_info in recommended_friends.items() %}
+                    <li>{{ friend_info }} 
+                        <br>
+                        <form action="/addfriend" method="POST">
+                            <input type="hidden" name="friendemail" value="{{ friend_info.split(' ')[-1][1:-1] }}">
+                            <input type="submit" value="Add Friend">
+                        </form>
+                        <br>
+                    </li>
+                {% endfor %}
+            {% else %}
+                <li>No Recommendation.</li>
             {% endif %}
         </ul>
         <a href="/">Home</a>

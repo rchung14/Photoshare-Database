@@ -1,14 +1,3 @@
-######################################
-# author ben lawson <balawson@bu.edu>
-# Edited by: Craig Einstein <einstein@bu.edu>
-######################################
-# Some code adapted from
-# CodeHandBook at http://codehandbook.org/python-web-application-development-using-flask-and-mysql/
-# and MaxCountryMan at https://github.com/maxcountryman/flask-login/
-# and Flask Offical Tutorial at  http://flask.pocoo.org/docs/0.10/patterns/fileuploads/
-# see links for further understanding
-###################################################
-
 import flask
 from flask import Flask, Response, request, render_template, redirect, url_for
 from flaskext.mysql import MySQL
@@ -223,6 +212,16 @@ def getAllUsers():
     user_ids = [row[0] for row in cursor.fetchall()]
     return user_ids
 
+def getUserFromAlbumId(album_id):
+	cursor = conn.cursor() 
+	cursor.execute("SELECT user_id FROM Albums WHERE album_id = '{0}'".format(album_id,))
+	return cursor.fetchone()[0]
+
+def getEmailFromId(uid):
+	cursor = conn.cursor() 
+	cursor.execute("SELECT email FROM Users WHERE user_id = '{0}'".format(uid,))
+	return cursor.fetchone()[0]
+
 def tagFormat(tags): 
 	tags_list = [tag.strip().lower() for tag in tags.split(',')]
 	return tags_list
@@ -245,23 +244,18 @@ def protected():
 #begin photo uploading code
 # photos uploaded using base64 encoding so they can be directly embeded in HTML
 
-# to do: 
-# - contribution score --> upload count/decrement when they delete photo, comments on other users posts
-# - make albums public for everyone to see
-# - make so that only owners can upload/delete their pictures
-# - view most popular tags --> 3 tags with most photos with it
-# - photo search with tags --> users can search 'friends boston' and display photos with both 
+# to do:
+# - implement guests being able to like/unlike/comment/etc
+# - view most popular tags --> 3 tags with most photos, descending order
 # - visitors and users leave comments (registered + 1 contribution score) 
-# - users should be able to search for photos with comments 
-# - friend recommendations --> recommend friends of friends 
-# - you-may-also like --> take tags most used by uploaded photo owner and provide similar photos to theirs 
+# - users should be able to search for photos with comments --> displays names of users ordered by the number of comments that match the query in descending order
+# - you-may-also like --> take 3 tags most used by uploaded photo owner and provide similar photos to theirs --> 3 same tags takes priority, then 2, then 1...
 
 ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif'])
 def allowed_file(filename):
 	return '.' in filename and filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS
 
-@app.route('/contribution')
-@flask_login.login_required
+@app.route('/contribution', methods=['GET'])
 def contribution():
 	contribution = {}
 	allusers = getAllUsers()
@@ -271,11 +265,10 @@ def contribution():
 		# count uploaded photos
 		cursor.execute('''SELECT COUNT(*) FROM Pictures WHERE user_id = %s''', (user,))
 		photocount = cursor.fetchone()[0]
-		cursor.execute('''SELECT COUNT(*) FROM Comments c JOIN Pictures p ON c.picture_id = p.picture_id WHERE c.user_id = %s <> p.user_id = %s''', (user, user,))
+		cursor.execute('''SELECT COUNT(*) FROM Comments c JOIN Pictures p ON c.picture_id = p.picture_id WHERE c.user_id = %s AND p.user_id <> %s''', (user, user,))
 		commentcount = cursor.fetchone()[0]
 		contribution[f"{fname} {lname}"] = photocount + commentcount
 	sorted_contribution = dict(sorted(contribution.items(), key=lambda x: x[1], reverse=True)[:10])
-	print(sorted_contribution)
 	return render_template('contribution.html', sorted_contribution=sorted_contribution)
 
 #uploading a photo
@@ -309,13 +302,14 @@ def upload_file():
 		return render_template('upload.html', albums=albums)
 
 #putting into album/viewing album
-@app.route('/album', methods=['GET', 'POST'])
+@app.route('/album', methods=['GET'])
 @flask_login.login_required
 def album():
 	uid = getUserIdFromEmail(flask_login.current_user.id)
 	return render_template('album.html', albums=getUsersAlbums(uid))
 
 @app.route('/albumphoto', methods=['GET'])
+@flask_login.login_required
 def albumphoto():
 	uid = getUserIdFromEmail(flask_login.current_user.id)
 	album_id = request.args.get('album_id')
@@ -333,11 +327,34 @@ def albumphoto():
 					album_id=album_id, photos=photos, comments=comments, \
 						  tags=tags, likes=likes, base64=base64)
     
+@app.route('/visitoralbumphoto', methods=['GET'])
+def visitoralbumphoto(): 
+	album_id = request.args.get('album_id')
+	uid = getUserFromAlbumId(album_id)
+	fname, lname = getUsersName(uid)
+	username = f"{fname} {lname}"
+	album_name = getAlbumName(album_id)
+	photos = getUsersPhotos(uid, album_id)
+	photo_ids = getPhotoId(album_id)
+	tags = {}
+	likes = {}
+	comments = {} 
+	for photo in range(len(photo_ids)): 
+		tags[photo_ids[photo]] = getPhotoTag(photo_ids[photo])
+		likes[photo_ids[photo]] = getPictureLikes(photo_ids[photo])
+		comments[photo_ids[photo]] = getPhotoComments(photo_ids[photo])
+	return render_template('visitoralbumphoto.html', album_name=album_name, \
+					album_id=album_id, photos=photos, comments=comments, \
+						  tags=tags, username=username, likes=likes, base64=base64)
+
 @app.route('/like', methods=['POST'])
 def like():
 	album_id = request.args.get('album_id')
 	photo_id = request.form.get('photo_id')
-	uid = getUserIdFromEmail(flask_login.current_user.id)
+	if flask_login.current_user.is_authenticated:
+		uid = getUserIdFromEmail(flask_login.current_user.id)
+	else:
+		uid = -1
 	# Check if user has liked this photo before
 	cursor = conn.cursor()
 	cursor.execute('''SELECT * FROM Likes WHERE user_id = %s AND picture_id = %s''', (uid, photo_id))
@@ -366,15 +383,15 @@ def unlike():
 @app.route('/viewlikes', methods=['GET'])
 def viewlikes(): 
 	photo_id = request.args.get('photo_id')
-	uid = getUserIdFromEmail(flask_login.current_user.id)
 	likers = getWhoLiked(photo_id)
 	photolikers = {}
 	for likes in range(len(likers)):
 		fname, lname = getUsersName(likers[likes])
 		photolikers[likers[likes]] = f"{fname} {lname}" 
-	return render_template('viewlikes.html', likers=likers, uid=uid, photo_id=photo_id, photolikers=photolikers)
+	return render_template('viewlikes.html', likers=likers, photo_id=photo_id, photolikers=photolikers)
 
 @app.route('/createalbum', methods=['GET', 'POST'])
+@flask_login.login_required
 def createalbum(): 
 	if request.method == 'POST': 
 		uid = getUserIdFromEmail(flask_login.current_user.id)
@@ -391,6 +408,7 @@ def createalbum():
 		return render_template('createalbum.html', albums=albums)
 	
 @app.route('/deletealbum', methods=['POST'])
+@flask_login.login_required
 def deletealbum(): 
     album_id = request.form.get('album_id') 
     cursor = conn.cursor()
@@ -405,8 +423,19 @@ def deletealbum():
     conn.commit()
     return redirect(url_for('album'))
 
-    
+@app.route('/allalbums', methods=['GET'])
+def allalbums():
+    cursor = conn.cursor() 
+    if flask_login.current_user.is_authenticated:
+        uid = getUserIdFromEmail(flask_login.current_user.id)
+        cursor.execute('''SELECT album_id, name FROM Albums WHERE user_id <> %s''', (uid,))
+    else:
+        cursor.execute('''SELECT album_id, name FROM Albums''')
+    albums = cursor.fetchall()
+    return render_template('allalbums.html', albums=albums)
+
 @app.route('/deletephoto', methods=['POST'])
+@flask_login.login_required
 def deletephoto(): 
     photo_id = request.form.get('photo_id')
     cursor = conn.cursor()
@@ -420,9 +449,10 @@ def deletephoto():
     return redirect(request.referrer)
 	
 @app.route('/addfriend', methods=['POST'])
+@flask_login.login_required
 def addfriend():
 	if not isEmailUnique(request.form.get('friendemail')):
-		uid = request.form.get('uid')
+		uid = getUserIdFromEmail(flask_login.current_user.id)
 		uid2 = getUserIdFromEmail(request.form.get('friendemail'))
 		cursor = conn.cursor() 
 		cursor.execute('''INSERT INTO Friendship (UID1, UID2) VALUES (%s, %s)''', (uid, uid2))
@@ -432,25 +462,36 @@ def addfriend():
 	return render_template('friendslist.html',message="User does not exist!")
 
 @app.route('/removefriend', methods=['POST'])
+@flask_login.login_required
 def removefriend():
 	uid = getUserIdFromEmail(flask_login.current_user.id)
 	friend_id = request.form.get('friend_id')
 	cursor = conn.cursor()
-	cursor.execute('''DELETE FROM Friendship WHERE UID1 = %s OR UID2 = %s''', (uid, friend_id))
-	cursor.execute('''DELETE FROM Friendship WHERE UID1 = %s OR UID2 = %s''', (friend_id, uid))
+	cursor.execute('''DELETE FROM Friendship WHERE UID1 = %s AND UID2 = %s''', (uid, friend_id))
+	cursor.execute('''DELETE FROM Friendship WHERE UID1 = %s AND UID2 = %s''', (friend_id, uid))
 	conn.commit()
 	return redirect(url_for('friendslist'))
 	
-@app.route('/friendslist')
+@app.route('/friendslist', methods=['GET'])
 @flask_login.login_required
 def friendslist(): 
 	uid = getUserIdFromEmail(flask_login.current_user.id) 
 	friendids = getUsersFriends(uid)
 	friendname = {} 
+	recommended_ids = {} 
+	recommended_friends ={} 
 	for friend in range(len(friendids)): 
+		recommended_ids[friendids[friend]] = getUsersFriends(friendids[friend])
 		fname, lname = getUsersName(friendids[friend])
 		friendname[friendids[friend]] = f"{fname} {lname}"
-	return render_template('friendslist.html', friendname=friendname, uid=uid)
+	for friendid in recommended_ids.values(): 
+		for recfriend in friendid:
+			if recfriend == uid or recfriend in friendname:
+				continue
+			fname, lname = getUsersName(recfriend)
+			email = getEmailFromId(recfriend)
+			recommended_friends[recfriend] = f"{fname} {lname} ({email})"
+	return render_template('friendslist.html', friendname=friendname, recommended_friends=recommended_friends)
 
 @app.route('/comment', methods=['POST'])
 def comment(): 
@@ -462,6 +503,51 @@ def comment():
     cursor.execute('''INSERT INTO Comments (text, date, user_id, picture_id) VALUES (%s, %s, %s, %s)''', (comment_text, commentdate, uid, photo_id))
     conn.commit()
     return redirect(request.referrer)
+
+@app.route('/search', methods=['GET', 'POST'])
+def search():
+	if request.method == 'POST':
+		search_type = request.form['search_type']
+		query = request.form['search']
+		if search_type == 'tag':
+			# Get all photos with tags
+			cursor = conn.cursor()
+			cursor.execute('SELECT p.*, u.user_id FROM Pictures p JOIN Tagged t ON p.picture_id = t.photo_id JOIN Tags tg ON tg.tag_id = t.tag_id JOIN Users u ON p.user_id = u.user_id WHERE tg.tag_name IN %s', ([tag.strip().lower() for tag in query.split(',')],))
+			rows = cursor.fetchall()
+			photos_dict = {}
+			for row in rows:
+				photo_id = row[0]
+				if photo_id not in photos_dict:
+					photos_dict[photo_id] = row
+			photos = list(photos_dict.values())
+		elif search_type == 'tag_user':
+			# Get photos of current user with tags
+			cursor = conn.cursor()
+			cursor.execute('SELECT p.*, u.user_id FROM Pictures p JOIN Tagged t ON p.picture_id = t.photo_id JOIN Tags tg ON tg.tag_id = t.tag_id JOIN Users u ON p.user_id = u.user_id WHERE tg.tag_name IN %s AND p.user_id = %s', ([tag.strip().lower() for tag in query.split(',')], getUserIdFromEmail(flask_login.current_user.id)))
+			rows = cursor.fetchall()
+			photos_dict = {}
+			for row in rows:
+				photo_id = row[0]
+				if photo_id not in photos_dict:
+					photos_dict[photo_id] = row
+			photos = list(photos_dict.values())
+		elif search_type == 'comments':
+			# Get all photos with matching comments
+			cursor = conn.cursor()
+			cursor.execute('SELECT p.*, u.user_id FROM Pictures p JOIN Comments c ON p.picture_id = c.picture_id JOIN Users u ON p.user_id = u.user_id WHERE c.text LIKE %s', ('%' + query + '%',))
+			photos = cursor.fetchall()
+		tags = {}
+		likes = {}
+		comments = {} 
+		if len(photos) >= 1: 
+			for photo in photos:
+				photo_id = photo[0] 
+				tags[photo_id] = getPhotoTag(photo_id)
+				likes[photo_id] = getPictureLikes(photo_id)
+				comments[photo_id] = getPhotoComments(photo_id)
+		return render_template('search.html', photos=photos, tags=tags, comments=comments, likes=likes, base64=base64)
+	else:
+		return render_template('search.html')
 
 #default page
 @app.route("/", methods=['GET'])
