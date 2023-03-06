@@ -1,0 +1,25 @@
+<!doctype html>
+<html>
+<head>
+  <title>Albums</title>
+</head>
+<body>
+  <h1>Other User's Albums</h1>
+  {% if albums %}
+    <h2>Choose an album to explore</h2>
+    <ul>
+      {% for album in albums %}
+      <li><a href="/visitoralbumphoto?album_id={{ album[0] }}">{{ album[1] }}</a>
+        <br>
+        <br>
+      </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>Looks like there are no other albums!</a></p>
+  {% endif %}
+  <button onclick="history.back()">Back</button><br />
+  <a href='/'>Home</a>
+</body>
+</html>
+
