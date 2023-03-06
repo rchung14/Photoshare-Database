@@ -13,7 +13,7 @@ app.secret_key = 'hello'  # Change this!
 
 #These will need to be changed according to your creditionals
 app.config['MYSQL_DATABASE_USER'] = 'root'
-app.config['MYSQL_DATABASE_PASSWORD'] = 'kenny123'
+app.config['MYSQL_DATABASE_PASSWORD'] = 'Wjddnwls2002!'
 app.config['MYSQL_DATABASE_DB'] = 'photoshare'
 app.config['MYSQL_DATABASE_HOST'] = 'localhost'
 mysql.init_app(app)
@@ -549,16 +549,8 @@ def search():
 	else:
 		return render_template('search.html')
 	
-@app.route('/popular_tags', methods=['GET', 'POST'])
+@app.route('/popular_tags', methods=['GET'])
 def PopularTags():
-	if request.method == 'POST':
-		tag = request.form.get('tag')
-		cursor = conn.cursor()
-		cursor.execute("SELECT * FROM Users, Photos, Tags, Tagged WHERE Tags.tag_id = Tagged.tag_id AND Tagged.photo_id = Photos.photo_id AND Photos.user_id = Users.user_id AND Tags.tag_name = '{0}'".format(tag))
-		photos = cursor.fetchall()
-
-		return render_template('album.html', message="Here are the photos for this tag.", photos = photos, base64=base64)
-	else:
 		return render_template('top_tags.html', tags = GrabTags())
 	
 def GrabTags():
@@ -570,9 +562,22 @@ def GrabTags():
 @app.route('/youmaylike', methods=['GET'])
 @flask_login.login_required
 def youmaylike(): 
-    # Get user's photos and their tags
+    photos = get_matching_photos(getUserIdFromEmail(flask_login.current_user.id))
+    # Get tags, likes, and comments for each photo
+    tags = {}
+    likes = {}
+    comments = {}
+    if len(photos) >= 1: 
+        for photo in photos:
+            photo_id = photo['photo'][0]
+            tags[photo_id] = getPhotoTag(photo_id)
+            likes[photo_id] = getPictureLikes(photo_id)
+            comments[photo_id] = getPhotoComments(photo_id)
+    return render_template('youmaylike.html', photos=photos, tags=tags, likes=likes, comments=comments)
+
+def get_matching_photos(user_id):
     cursor = conn.cursor()
-    cursor.execute('''SELECT p.picture_id, tg.tag_name FROM Pictures p JOIN Tagged t ON p.picture_id = t.photo_id JOIN Tags tg ON tg.tag_id = t.tag_id WHERE p.user_id = %s''', (getUserIdFromEmail(flask_login.current_user.id),))
+    cursor.execute('''SELECT p.picture_id, tg.tag_name FROM Pictures p JOIN Tagged t ON p.picture_id = t.photo_id JOIN Tags tg ON tg.tag_id = t.tag_id WHERE p.user_id = %s''', (user_id,))
     rows = cursor.fetchall()
     user_photos = {}
     for row in rows:
@@ -598,7 +603,7 @@ def youmaylike():
 						JOIN Tags tg ON tg.tag_id = t.tag_id 
 						JOIN Users u ON p.user_id = u.user_id 
 						WHERE tg.tag_name IN %s AND u.user_id <> %s
-					''', ([tag.lower() for tag in top_tags], getUserIdFromEmail(flask_login.current_user.id)))
+					''', ([tag.lower() for tag in top_tags], user_id))
     rows = cursor.fetchall()
     photos_dict = {}
     for row in rows:
@@ -611,17 +616,7 @@ def youmaylike():
     # Sort the photos by number of matched tags and number of total tags
     photos = list(photos_dict.values())
     photos.sort(key=lambda x: (-len(x['matched_tags']), len(getPhotoTag(x['photo'][0]))))
-    # Get tags, likes, and comments for each photo
-    tags = {}
-    likes = {}
-    comments = {}
-    if len(photos) >= 1: 
-        for photo in photos:
-            photo_id = photo['photo'][0]
-            tags[photo_id] = getPhotoTag(photo_id)
-            likes[photo_id] = getPictureLikes(photo_id)
-            comments[photo_id] = getPhotoComments(photo_id)
-    return render_template('youmaylike.html', photos=photos, tags=tags, likes=likes, comments=comments)
+    return photos
 
 #default page
 @app.route("/", methods=['GET'])
