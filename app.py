@@ -548,6 +548,24 @@ def search():
 		return render_template('search.html', photos=photos, tags=tags, comments=comments, likes=likes, base64=base64)
 	else:
 		return render_template('search.html')
+	
+@app.route('/popular_tags', methods=['GET', 'POST'])
+def PopularTags():
+	if request.method == 'POST':
+		tag = request.form.get('tag')
+		cursor = conn.cursor()
+		cursor.execute("SELECT * FROM Users, Photos, Tags, Tagged WHERE Tags.tag_id = Tagged.tag_id AND Tagged.photo_id = Photos.photo_id AND Photos.user_id = Users.user_id AND Tags.tag_name = '{0}'".format(tag))
+		photos = cursor.fetchall()
+
+		return render_template('album.html', message="Here are the photos for this tag.", photos = photos, base64=base64)
+	else:
+		return render_template('top_tags.html', tags = GrabTags())
+	
+def GrabTags():
+	cursor = conn.cursor()
+	cursor.execute("SELECT tag_name, COUNT(tag_name) FROM Tags, Tagged WHERE Tags.tag_id = Tagged.tag_id GROUP BY tag_name ORDER BY COUNT(tag_name) DESC LIMIT 3")
+	tags = cursor.fetchall()
+	return tags
 
 #default page
 @app.route("/", methods=['GET'])
