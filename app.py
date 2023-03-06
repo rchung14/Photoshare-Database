@@ -306,7 +306,8 @@ def upload_file():
 @flask_login.login_required
 def album():
 	uid = getUserIdFromEmail(flask_login.current_user.id)
-	return render_template('album.html', albums=getUsersAlbums(uid))
+	albums = getUsersAlbums(uid)
+	return render_template('album.html', albums=albums)
 
 @app.route('/albumphoto', methods=['GET'])
 @flask_login.login_required
@@ -367,7 +368,6 @@ def like():
 
 @app.route('/unlike', methods=['POST'])
 def unlike(): 
-	album_id = request.form.get('album_id')
 	photo_id = request.form.get('photo_id')
 	uid = getUserIdFromEmail(flask_login.current_user.id)
 	# Check if user has liked this photo before
@@ -548,6 +548,62 @@ def search():
 		return render_template('search.html', photos=photos, tags=tags, comments=comments, likes=likes, base64=base64)
 	else:
 		return render_template('search.html')
+	
+@app.route('/youmaylike', methods=['GET'])
+@flask_login.login_required
+def youmaylike(): 
+    # Get user's photos and their tags
+    cursor = conn.cursor()
+    cursor.execute('''SELECT p.picture_id, tg.tag_name FROM Pictures p JOIN Tagged t ON p.picture_id = t.photo_id JOIN Tags tg ON tg.tag_id = t.tag_id WHERE p.user_id = %s''', (getUserIdFromEmail(flask_login.current_user.id),))
+    rows = cursor.fetchall()
+    user_photos = {}
+    for row in rows:
+        photo_id = row[0]
+        tag = row[1]
+        if photo_id not in user_photos:
+            user_photos[photo_id] = [tag]
+        else:
+            user_photos[photo_id].append(tag)
+    # Get the three most frequently used tags among user's photos
+    tag_counts = {}
+    for tags in user_photos.values():
+        for tag in tags:
+            if tag not in tag_counts:
+                tag_counts[tag] = 1
+            else:
+                tag_counts[tag] += 1
+    top_tags = sorted(tag_counts, key=tag_counts.get, reverse=True)[:3]
+    # Get all photos with any of the top tags
+    cursor.execute('''SELECT p.*, u.user_id, tg.tag_name 
+						FROM Pictures p 
+						JOIN Tagged t ON p.picture_id = t.photo_id 
+						JOIN Tags tg ON tg.tag_id = t.tag_id 
+						JOIN Users u ON p.user_id = u.user_id 
+						WHERE tg.tag_name IN %s AND u.user_id <> %s
+					''', ([tag.lower() for tag in top_tags], getUserIdFromEmail(flask_login.current_user.id)))
+    rows = cursor.fetchall()
+    photos_dict = {}
+    for row in rows:
+        photo_id = row[0]
+        tag = row[4]
+        if photo_id not in photos_dict:
+            photos_dict[photo_id] = {'photo': row, 'matched_tags': {tag}}
+        else:
+            photos_dict[photo_id]['matched_tags'].add(tag)
+    # Sort the photos by number of matched tags and number of total tags
+    photos = list(photos_dict.values())
+    photos.sort(key=lambda x: (-len(x['matched_tags']), len(getPhotoTag(x['photo'][0]))))
+    # Get tags, likes, and comments for each photo
+    tags = {}
+    likes = {}
+    comments = {}
+    if len(photos) >= 1: 
+        for photo in photos:
+            photo_id = photo['photo'][0]
+            tags[photo_id] = getPhotoTag(photo_id)
+            likes[photo_id] = getPictureLikes(photo_id)
+            comments[photo_id] = getPhotoComments(photo_id)
+    return render_template('youmaylike.html', photos=photos, tags=tags, likes=likes, comments=comments)
 
 #default page
 @app.route("/", methods=['GET'])
