@@ -255,13 +255,15 @@ def protected():
 #begin photo uploading code
 # photos uploaded using base64 encoding so they can be directly embeded in HTML
 
-# to do: 
+# to do:
 # - implement guests being able to like/unlike/comment/etc
-# - view most popular tags --> 3 tags with most photos with it
+# - view your photos with certain tag
+# - view ALL photos with certain tag
+# - view most popular tags --> 3 tags with most photos, descending order
 # - photo search with tags --> users can search 'friends boston' and display photos with both 
 # - visitors and users leave comments (registered + 1 contribution score) 
-# - users should be able to search for photos with comments 
-# - you-may-also like --> take tags most used by uploaded photo owner and provide similar photos to theirs 
+# - users should be able to search for photos with comments --> displays names of users ordered by the number of comments that match the query in descending order
+# - you-may-also like --> take 3 tags most used by uploaded photo owner and provide similar photos to theirs --> 3 same tags takes priority, then 2, then 1...
 
 ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif'])
 def allowed_file(filename):
