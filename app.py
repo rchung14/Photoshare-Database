@@ -13,7 +13,7 @@ app.secret_key = 'hello'  # Change this!
 
 #These will need to be changed according to your creditionals
 app.config['MYSQL_DATABASE_USER'] = 'root'
-app.config['MYSQL_DATABASE_PASSWORD'] = 'Wjddnwls2002!'
+app.config['MYSQL_DATABASE_PASSWORD'] = 'kenny123' #'Wjddnwls2002!'
 app.config['MYSQL_DATABASE_DB'] = 'photoshare'
 app.config['MYSQL_DATABASE_HOST'] = 'localhost'
 mysql.init_app(app)
@@ -617,6 +617,18 @@ def get_matching_photos(user_id):
     photos = list(photos_dict.values())
     photos.sort(key=lambda x: (-len(x['matched_tags']), len(getPhotoTag(x['photo'][0]))))
     return photos
+
+@app.route('/search_comment', methods=['GET', 'POST'])
+def SearchComments():
+	if request.method == 'POST':
+		comment = request.form.get('comment')
+		cursor = conn.cursor()
+		cursor.execute("SELECT fname, lname, COUNT(*) AS users_found FROM Users, Comments WHERE Users.user_id = Comments.user_id AND text = '{0}' GROUP BY Users.user_id ORDER BY users_found DESC".format(comment))
+		comments = cursor.fetchall()
+
+		return render_template('comment_search.html', message="User's found that match this specific comment", comments = comments)
+	else:
+		return render_template('comment_search.html')
 
 #default page
 @app.route("/", methods=['GET'])
