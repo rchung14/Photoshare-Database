@@ -2,16 +2,20 @@ CREATE DATABASE IF NOT EXISTS photoshare;
 USE photoshare;
 DROP TABLE IF EXISTS Pictures CASCADE;
 DROP TABLE IF EXISTS Users CASCADE;
+DROP TABLE IF EXISTS Albums CASCADE; 
+DROP TABLE IF EXISTS Tags CASCADE;
+DROP TABLE IF EXISTS Tagged CASCADE; 
+DROP TABLE IF EXISTS Likes CASCADE;
 
 CREATE TABLE Users (
-  user_id INT NOT NULL AUTO_INCREMENT,
-  gender VARCHAR(6), 
-  email varchar(255) NOT NULL UNIQUE,
-  password varchar(40) NOT NULL,
-  dob DATE NOT NULL, 
-  hometown VARCHAR(40), 
-  fname VARCHAR(40) NOT NULL, 
-  lname VARCHAR(40) NOT NULL, 
+    user_id int4  AUTO_INCREMENT,
+    gender VARCHAR(6), 
+    email varchar(255) UNIQUE,
+    password varchar(255) NOT NULL,
+    dob DATE NOT NULL, 
+    hometown VARCHAR(40), 
+	fname VARCHAR(40) NOT NULL, 
+	lname VARCHAR(40) NOT NULL, 
   CONSTRAINT users_pk PRIMARY KEY (user_id)
 );
 
@@ -31,20 +35,9 @@ CREATE TABLE Pictures (
   imgdata LONGBLOB, 
   album_id INT NOT NULL, 
   PRIMARY KEY (picture_id),
-  FOREIGN KEY (user_id) REFERENCES Users(user_id), 
+  FOREIGN KEY (user_id) REFERENCES Users(user_id),
   FOREIGN KEY (album_id) REFERENCES Albums(album_id) ON DELETE CASCADE 
 );
-
-CREATE TABLE Comments (
-  comment_id INT NOT NULL AUTO_INCREMENT, 
-  text TEXT NOT NULL, 
-  date DATETIME DEFAULT CURRENT_TIMESTAMP, 
-  user_id INT NOT NULL, 
-  picture_id INT NOT NULL, 
-  PRIMARY KEY (comment_id), 
-  FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE, 
-  FOREIGN KEY (picture_id) REFERENCES Pictures(picture_id) ON DELETE CASCADE
-); 
 
 CREATE TABLE Likes ( 
   user_id INT NOT NULL, 
@@ -64,8 +57,8 @@ CREATE TABLE Tagged (
   photo_id INT,
   tag_id INT, 
   PRIMARY KEY (photo_id, tag_id), 
-  FOREIGN KEY (photo_id) REFERENCES Pictures(picture_id), 
-  FOREIGN KEY (tag_id) REFERENCES Tags(tag_id) 
+  FOREIGN KEY (photo_id) REFERENCES Pictures(picture_id) ON DELETE CASCADE, 
+  FOREIGN KEY (tag_id) REFERENCES Tags(tag_id) ON DELETE CASCADE
 );
 
 CREATE TABLE Friendship (
@@ -76,6 +69,17 @@ CREATE TABLE Friendship (
   FOREIGN KEY (UID1) REFERENCES Users(user_id) ON DELETE CASCADE, 
   FOREIGN KEY (UID2) REFERENCES Users(user_id) ON DELETE CASCADE
 );
+
+CREATE TABLE Comments (
+  comment_id INT NOT NULL AUTO_INCREMENT, 
+  text TEXT NOT NULL, 
+  date DATETIME DEFAULT CURRENT_TIMESTAMP, 
+  user_id INT NOT NULL, 
+  picture_id INT NOT NULL, 
+  PRIMARY KEY (comment_id), 
+  FOREIGN KEY (user_id) REFERENCES Users(user_id) ON DELETE CASCADE, 
+  FOREIGN KEY (picture_id) REFERENCES Pictures(picture_id) ON DELETE CASCADE
+); 
 
 CREATE ASSERTION Comment-Constraint CHECK
   (NOT EXISTS (SELECT * FROM Comments C, Pictures Photos

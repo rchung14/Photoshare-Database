@@ -17,7 +17,8 @@
             {% for album in albums %}
             <option value="{{ album[1] }}">{{ album[0] }}</option>
             {% endfor %}
-        </select><br />
+        </select>
+        <br />
         <button onclick="history.back()">Back</button>
         <input type="submit" value="Upload" />
         <p>Don't see an album? <a href="/createalbum">Create an album</a></p>

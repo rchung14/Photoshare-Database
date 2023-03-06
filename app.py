@@ -215,12 +215,7 @@ def getPhotoComments(photo_id):
     cursor = conn.cursor()
     cursor.execute('''SELECT Comments.text, Users.email, Comments.date FROM Comments JOIN Users ON \
 		Comments.user_id = Users.user_id WHERE Comments.picture_id = %s ORDER BY Comments.date DESC''', (photo_id,))
-    comments = []
-    for row in cursor.fetchall():
-        comment = {'text': row[0], 'user_email': row[1], 'date': row[2]}
-        comments.append(comment)
-    print(comments)
-    return comments
+    return cursor.fetchall()
 
 def tagFormat(tags): 
 	tags_list = [tag.strip().lower() for tag in tags.split(',')]
@@ -305,10 +300,11 @@ def albumphoto():
 	photo_ids = getPhotoId(album_id)
 	tags = {}
 	likes = {}
+	comments = {} 
 	for photo in range(len(photo_ids)): 
 		tags[photo_ids[photo]] = getPhotoTag(photo_ids[photo])
 		likes[photo_ids[photo]] = getPictureLikes(photo_ids[photo])
-		comments = getPhotoComments(photo_ids[photo])
+		comments[photo_ids[photo]] = getPhotoComments(photo_ids[photo])
 	return render_template('albumphoto.html', album_name=album_name, \
 					album_id=album_id, photos=photos, comments=comments, \
 						  tags=tags, likes=likes, base64=base64)
@@ -374,23 +370,30 @@ def createalbum():
 def deletealbum(): 
     album_id = request.form.get('album_id') 
     cursor = conn.cursor()
+    cursor.execute('''DELETE FROM Tags WHERE tag_id IN (
+                        SELECT DISTINCT tag_id FROM Tagged
+                        WHERE photo_id IN (
+                            SELECT picture_id FROM Pictures
+                            WHERE album_id = %s
+                        )
+                    )''', (album_id,))
     cursor.execute('''DELETE FROM Albums WHERE album_id = %s''', (album_id,))
     conn.commit()
     return redirect(url_for('album'))
+
     
-@app.route('/deletephoto', methods=['GET', 'POST'])
+@app.route('/deletephoto', methods=['POST'])
 def deletephoto(): 
-	if request.method == 'POST': 
-		album_id = request.form.get('album_id')
-		photo_id = request.form.get('photo_id')
-		cursor = conn.cursor()
-		cursor.execute('''DELETE FROM Pictures WHERE picture_id = %s''', (photo_id,))
-		conn.commit()
-		return redirect(url_for('albumphoto', album_id=album_id))
-	else: 
-		uid = getUserIdFromEmail(flask_login.current_user.id)
-		album_id = request.args.get('album_id')
-		return render_template('deletephoto.html', album_id=album_id, photos=getUsersPhotos(uid, album_id), base64=base64)
+    photo_id = request.form.get('photo_id')
+    cursor = conn.cursor()
+    cursor.execute('''SELECT tag_id FROM Tagged WHERE photo_id = %s''', (photo_id,))
+    tag_ids = cursor.fetchall()
+    cursor.execute('''DELETE FROM Pictures WHERE picture_id = %s''', (photo_id,))
+    cursor.execute('''DELETE FROM Tagged WHERE photo_id = %s''', (photo_id,))
+    for tag_id in tag_ids:
+        cursor.execute('''DELETE FROM Tags WHERE tag_id = %s''', (tag_id[0],))
+    conn.commit()
+    return redirect(request.referrer)
 	
 @app.route('/addfriend', methods=['POST'])
 def addfriend():
