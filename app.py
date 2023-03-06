@@ -1,14 +1,3 @@
-######################################
-# author ben lawson <balawson@bu.edu>
-# Edited by: Craig Einstein <einstein@bu.edu>
-######################################
-# Some code adapted from
-# CodeHandBook at http://codehandbook.org/python-web-application-development-using-flask-and-mysql/
-# and MaxCountryMan at https://github.com/maxcountryman/flask-login/
-# and Flask Offical Tutorial at  http://flask.pocoo.org/docs/0.10/patterns/fileuploads/
-# see links for further understanding
-###################################################
-
 import flask
 from flask import Flask, Response, request, render_template, redirect, url_for
 from flaskext.mysql import MySQL
@@ -257,10 +246,7 @@ def protected():
 
 # to do:
 # - implement guests being able to like/unlike/comment/etc
-# - view your photos with certain tag
-# - view ALL photos with certain tag
 # - view most popular tags --> 3 tags with most photos, descending order
-# - photo search with tags --> users can search 'friends boston' and display photos with both 
 # - visitors and users leave comments (registered + 1 contribution score) 
 # - users should be able to search for photos with comments --> displays names of users ordered by the number of comments that match the query in descending order
 # - you-may-also like --> take 3 tags most used by uploaded photo owner and provide similar photos to theirs --> 3 same tags takes priority, then 2, then 1...
@@ -269,7 +255,7 @@ ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif'])
 def allowed_file(filename):
 	return '.' in filename and filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS
 
-@app.route('/contribution')
+@app.route('/contribution', methods=['GET'])
 def contribution():
 	contribution = {}
 	allusers = getAllUsers()
@@ -316,7 +302,7 @@ def upload_file():
 		return render_template('upload.html', albums=albums)
 
 #putting into album/viewing album
-@app.route('/album', methods=['GET', 'POST'])
+@app.route('/album', methods=['GET'])
 @flask_login.login_required
 def album():
 	uid = getUserIdFromEmail(flask_login.current_user.id)
@@ -486,7 +472,7 @@ def removefriend():
 	conn.commit()
 	return redirect(url_for('friendslist'))
 	
-@app.route('/friendslist')
+@app.route('/friendslist', methods=['GET'])
 @flask_login.login_required
 def friendslist(): 
 	uid = getUserIdFromEmail(flask_login.current_user.id) 
@@ -517,6 +503,51 @@ def comment():
     cursor.execute('''INSERT INTO Comments (text, date, user_id, picture_id) VALUES (%s, %s, %s, %s)''', (comment_text, commentdate, uid, photo_id))
     conn.commit()
     return redirect(request.referrer)
+
+@app.route('/search', methods=['GET', 'POST'])
+def search():
+	if request.method == 'POST':
+		search_type = request.form['search_type']
+		query = request.form['search']
+		if search_type == 'tag':
+			# Get all photos with tags
+			cursor = conn.cursor()
+			cursor.execute('SELECT p.*, u.user_id FROM Pictures p JOIN Tagged t ON p.picture_id = t.photo_id JOIN Tags tg ON tg.tag_id = t.tag_id JOIN Users u ON p.user_id = u.user_id WHERE tg.tag_name IN %s', ([tag.strip().lower() for tag in query.split(',')],))
+			rows = cursor.fetchall()
+			photos_dict = {}
+			for row in rows:
+				photo_id = row[0]
+				if photo_id not in photos_dict:
+					photos_dict[photo_id] = row
+			photos = list(photos_dict.values())
+		elif search_type == 'tag_user':
+			# Get photos of current user with tags
+			cursor = conn.cursor()
+			cursor.execute('SELECT p.*, u.user_id FROM Pictures p JOIN Tagged t ON p.picture_id = t.photo_id JOIN Tags tg ON tg.tag_id = t.tag_id JOIN Users u ON p.user_id = u.user_id WHERE tg.tag_name IN %s AND p.user_id = %s', ([tag.strip().lower() for tag in query.split(',')], getUserIdFromEmail(flask_login.current_user.id)))
+			rows = cursor.fetchall()
+			photos_dict = {}
+			for row in rows:
+				photo_id = row[0]
+				if photo_id not in photos_dict:
+					photos_dict[photo_id] = row
+			photos = list(photos_dict.values())
+		elif search_type == 'comments':
+			# Get all photos with matching comments
+			cursor = conn.cursor()
+			cursor.execute('SELECT p.*, u.user_id FROM Pictures p JOIN Comments c ON p.picture_id = c.picture_id JOIN Users u ON p.user_id = u.user_id WHERE c.text LIKE %s', ('%' + query + '%',))
+			photos = cursor.fetchall()
+		tags = {}
+		likes = {}
+		comments = {} 
+		if len(photos) >= 1: 
+			for photo in photos:
+				photo_id = photo[0] 
+				tags[photo_id] = getPhotoTag(photo_id)
+				likes[photo_id] = getPictureLikes(photo_id)
+				comments[photo_id] = getPhotoComments(photo_id)
+		return render_template('search.html', photos=photos, tags=tags, comments=comments, likes=likes, base64=base64)
+	else:
+		return render_template('search.html')
 
 #default page
 @app.route("/", methods=['GET'])
