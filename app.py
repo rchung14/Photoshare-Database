@@ -217,6 +217,12 @@ def getPhotoComments(photo_id):
 		Comments.user_id = Users.user_id WHERE Comments.picture_id = %s ORDER BY Comments.date DESC''', (photo_id,))
     return cursor.fetchall()
 
+def getAllUsers():
+    cursor = conn.cursor()
+    cursor.execute('''SELECT DISTINCT user_id FROM Users''')
+    user_ids = [row[0] for row in cursor.fetchall()]
+    return user_ids
+
 def tagFormat(tags): 
 	tags_list = [tag.strip().lower() for tag in tags.split(',')]
 	return tags_list
@@ -240,12 +246,12 @@ def protected():
 # photos uploaded using base64 encoding so they can be directly embeded in HTML
 
 # to do: 
-# - contribution score --> upload count/decrement when they delete photo, comments on other users posts 
-# - make albums public for everyone to see 
-# - make so that only owners can upload/delete their profile /
+# - contribution score --> upload count/decrement when they delete photo, comments on other users posts
+# - make albums public for everyone to see
+# - make so that only owners can upload/delete their pictures
 # - view most popular tags --> 3 tags with most photos with it
 # - photo search with tags --> users can search 'friends boston' and display photos with both 
-# - visitors and users leave comments (registered + 1 contribution score)
+# - visitors and users leave comments (registered + 1 contribution score) 
 # - users should be able to search for photos with comments 
 # - friend recommendations --> recommend friends of friends 
 # - you-may-also like --> take tags most used by uploaded photo owner and provide similar photos to theirs 
@@ -253,6 +259,24 @@ def protected():
 ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif'])
 def allowed_file(filename):
 	return '.' in filename and filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS
+
+@app.route('/contribution')
+@flask_login.login_required
+def contribution():
+	contribution = {}
+	allusers = getAllUsers()
+	for user in allusers: 
+		fname, lname = getUsersName(user)
+		cursor = conn.cursor()
+		# count uploaded photos
+		cursor.execute('''SELECT COUNT(*) FROM Pictures WHERE user_id = %s''', (user,))
+		photocount = cursor.fetchone()[0]
+		cursor.execute('''SELECT COUNT(*) FROM Comments c JOIN Pictures p ON c.picture_id = p.picture_id WHERE c.user_id = %s <> p.user_id = %s''', (user, user,))
+		commentcount = cursor.fetchone()[0]
+		contribution[f"{fname} {lname}"] = photocount + commentcount
+	sorted_contribution = dict(sorted(contribution.items(), key=lambda x: x[1], reverse=True)[:10])
+	print(sorted_contribution)
+	return render_template('contribution.html', sorted_contribution=sorted_contribution)
 
 #uploading a photo
 @app.route('/upload', methods=['GET', 'POST'])

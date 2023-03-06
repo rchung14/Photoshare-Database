@@ -1,0 +1,17 @@
+<!doctype html>
+<html>
+<head>
+	<title>Top Contributors</title>
+</head>
+<body>
+	<h1>Top Contributors</h1>
+	<ul>
+		{% for user in sorted_contribution %}
+			<li>{{ user }}: {{ sorted_contribution[user] }}</li>
+		{% endfor %}
+	</ul>
+    <br>
+    <button onclick="history.back()">Back</button><br />
+    <a href='/'>Home</a>
+</body>
+</html>
