@@ -5,58 +5,64 @@
   </head>
   <body>
     <h1>You May Like</h1>
-    {% if recommended_photos %}
-      {% for photo in recommended_photos %}
-        <li style="list-style: none;">
-          {{photo[2]}}
-          <br>
-          {% if tags[photo[1]] %}
+    {% if message %}
+        <h4>{{ message }}</h4>
+    {% endif %}
+    {% if photos %}
+        {% for photo in photos %}
+        <li style="list-style: none;">{{photo[2]}}
+        <br>
+        {% if message %}
+          <h4>{{message}}!</h4>
+        {% endif %}
+        <br>
+        {% if tags[photo[0]] %}
             Tags:
-            {% for tag in tags[photo[1]] %}
-              {{ tag }};
+            {% for tag in tags[photo[0]] %}
+            {{ tag }};
             {% endfor %}
-          {% endif %}
-          <br>
-          <img style='border: 1px solid rgba(87, 87, 87, 0.419); border-radius: 8px;' src='data:image/jpg;base64, {{ base64.b64encode(photo[0]).decode("ascii") }}'/><br />
-          <br>
-          {% if likes[photo[1]] %}
-              Liked by: {{ likes[photo[1]] }}, <a href="/viewlikes?photo_id={{ photo[1] }}">View Likes</a>
-          {% else %}
-              No likes yet 
-          {% endif %}
-          <br>
-          <br> 
-          <form action="/like" method="POST">
+        {% endif %}
+        <br>
+        <img style='border: 1px solid rgba(87, 87, 87, 0.419); border-radius: 8px;' src='data:image/jpg;base64, {{ base64.b64encode(photo[3]).decode("ascii") }}'/><br />
+        <br>
+        {% if likes[photo[0]] %}
+            Liked by: {{ likes[photo[1]] }}, <a href="/viewlikes?photo_id={{ photo[1] }}">View Likes</a>
+        {% else %}
+            No likes yet 
+        {% endif %}
+        <br>
+        <br> 
+        <form action="/like" method="POST">
+            <input type="hidden" name="album_id" value="{{ album_id }}">
             <input type="hidden" name="photo_id" value="{{ photo[1] }}">
             <button type="submit">Like</button>
-          </form>
-          <form action="/unlike" method ="POST">
+        </form>
+        <form action="/unlike" method ="POST">
+            <input type="hidden" name="album_id" value="{{ album_id }}">
             <input type="hidden" name="photo_id" value="{{ photo[1] }}">
             <button type="submit">Unlike</button>
-          </form>
-          <br>
-          {% if comments[photo[1]] %}
+        </form>
+        <br>
+        {% if comments[photo[1]] %}
             {% for comment in comments[photo[1]] %}
-              <h4>{{ comment[1] }} on {{ comment[2] }}</h4>
-              <div style="margin-left: 20px;">
+                <h4>{{ comment[1] }} on {{ comment[2] }}</h4>
+                <div style="margin-left: 20px;">
                 <p>"{{ comment[0] }}"</p>
-              </div>
+                </div>
             {% endfor %}
-          {% else %}
+        {% else %}
             <p>No comments yet.</p>
-          {% endif %}
-          <form action="/comment" method="POST">
+        {% endif %}
+        <form action="/comment" method="POST">
             <label for="comment">Comment:</label><br>
             <textarea id="comment" name="comment" rows="1" cols="30"></textarea><br>
             <input type="hidden" name="photo_id" value="{{ photo[1] }}">
             <input type="submit" value="Post Comment">
-          </form>
+        </form>
         </li>
         <hr>
         <br>
-      {% endfor %}
-    {% else %}
-      <p>No recommended photos found.</p>
+        {% endfor %}
     {% endif %}
     <br>
     <button onclick="history.back()">Back</button><br />
