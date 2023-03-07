@@ -140,19 +140,17 @@ def register_user():
 		return flask.redirect(flask.url_for('register'))
 	
 
-@app.route('/guest-login', methods=['POST'])
+@app.route('/guest_login', methods=['GET'])
 def guest_login():
 	email='guest@gmail.com'
-	gender='guest'
 	password='guest'
 	dob='2000-01-01'
-	hometown='guest'
-	fname='Guest'
-	lname='guest'
+	fname='Anonymous'
+	lname='Guest'
 	uid=-1
 
-	cursor.execute("INSERT INTO Users (email, gender, password, dob, hometown, fname, lname, user_id) VALUES ('{0}', '{1}', \
-	'{2}', '{3}', '{4}', '{5}', '{6}', '{7}')".format(email, gender, password, dob, hometown, fname, lname, uid))
+	cursor.execute("INSERT INTO Users (user_id, email, password, dob, fname, lname) VALUES ('{0}', '{1}', \
+		'{2}', '{3}', '{4}', '{5}')".format(uid, email, password, dob, fname, lname))
 	conn.commit()
 
 	return render_template('hello.html', name=fname, message='You are now a guest!')
@@ -438,6 +436,7 @@ def deletealbum():
     return redirect(url_for('album'))
 
 @app.route('/allalbums', methods=['GET'])
+@flask_login.login_required
 def allalbums():
     cursor = conn.cursor() 
     if flask_login.current_user.is_authenticated:
@@ -528,6 +527,7 @@ def comment():
 	return redirect(request.referrer)
 
 @app.route('/search', methods=['GET', 'POST'])
+@flask_login.login_required
 def search():
 	if request.method == 'POST':
 		search_type = request.form['search_type']
@@ -626,6 +626,7 @@ def youmaylike():
         return render_template('youmaylike.html', photos=photos, comments=comments, likes=likes, tags=tags, base64=base64)
 
 @app.route('/search_comment', methods=['GET', 'POST'])
+@flask_login.login_required
 def SearchComments():
 	if request.method == 'POST':
 		comment = request.form.get('comment')
