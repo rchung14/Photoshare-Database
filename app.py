@@ -246,7 +246,6 @@ def protected():
 
 # to do:
 # - implement guests being able to like/unlike/comment/etc
-# - view most popular tags --> 3 tags with most photos, descending order
 # - visitors and users leave comments (registered + 1 contribution score) 
 # - users should be able to search for photos with comments --> displays names of users ordered by the number of comments that match the query in descending order
 # - you-may-also like --> take 3 tags most used by uploaded photo owner and provide similar photos to theirs --> 3 same tags takes priority, then 2, then 1...
@@ -559,64 +558,106 @@ def GrabTags():
 	tags = cursor.fetchall()
 	return tags
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 @app.route('/youmaylike', methods=['GET'])
 @flask_login.login_required
-def youmaylike(): 
-    photos = get_matching_photos(getUserIdFromEmail(flask_login.current_user.id))
-    # Get tags, likes, and comments for each photo
-    tags = {}
-    likes = {}
-    comments = {}
-    if len(photos) >= 1: 
-        for photo in photos:
-            photo_id = photo['photo'][0]
-            tags[photo_id] = getPhotoTag(photo_id)
-            likes[photo_id] = getPictureLikes(photo_id)
-            comments[photo_id] = getPhotoComments(photo_id)
-    return render_template('youmaylike.html', photos=photos, tags=tags, likes=likes, comments=comments)
-
-def get_matching_photos(user_id):
+def youmaylike():
+    uid = getUserIdFromEmail(flask_login.current_user.id)
     cursor = conn.cursor()
-    cursor.execute('''SELECT p.picture_id, tg.tag_name FROM Pictures p JOIN Tagged t ON p.picture_id = t.photo_id JOIN Tags tg ON tg.tag_id = t.tag_id WHERE p.user_id = %s''', (user_id,))
-    rows = cursor.fetchall()
-    user_photos = {}
-    for row in rows:
-        photo_id = row[0]
-        tag = row[1]
-        if photo_id not in user_photos:
-            user_photos[photo_id] = [tag]
-        else:
-            user_photos[photo_id].append(tag)
-    # Get the three most frequently used tags among user's photos
-    tag_counts = {}
-    for tags in user_photos.values():
-        for tag in tags:
-            if tag not in tag_counts:
-                tag_counts[tag] = 1
-            else:
-                tag_counts[tag] += 1
-    top_tags = sorted(tag_counts, key=tag_counts.get, reverse=True)[:3]
-    # Get all photos with any of the top tags
-    cursor.execute('''SELECT p.*, u.user_id, tg.tag_name 
-						FROM Pictures p 
-						JOIN Tagged t ON p.picture_id = t.photo_id 
-						JOIN Tags tg ON tg.tag_id = t.tag_id 
-						JOIN Users u ON p.user_id = u.user_id 
-						WHERE tg.tag_name IN %s AND u.user_id <> %s
-					''', ([tag.lower() for tag in top_tags], user_id))
-    rows = cursor.fetchall()
-    photos_dict = {}
-    for row in rows:
-        photo_id = row[0]
-        tag = row[4]
-        if photo_id not in photos_dict:
-            photos_dict[photo_id] = {'photo': row, 'matched_tags': {tag}}
-        else:
-            photos_dict[photo_id]['matched_tags'].add(tag)
-    # Sort the photos by number of matched tags and number of total tags
-    photos = list(photos_dict.values())
-    photos.sort(key=lambda x: (-len(x['matched_tags']), len(getPhotoTag(x['photo'][0]))))
-    return photos
+    # Retrieve the current user's top 3 tags
+    cursor.execute(
+        '''SELECT tg.tag_name
+           FROM Pictures p
+           JOIN Tagged t ON p.picture_id = t.photo_id
+           JOIN Tags tg ON tg.tag_id = t.tag_id
+           WHERE p.user_id = %s
+           GROUP BY tg.tag_name
+           ORDER BY COUNT(*) DESC
+           LIMIT 3''', (uid,))
+    top_tags = [row[0] for row in cursor.fetchall()]
+    # If the user has no top tags, display an error message
+    if not top_tags:
+        return render_template('youmaylike.html', message="Post a photo with tags!")
+    else:
+        # Retrieve all photos in the database that have at least one of the user's top tags
+        cursor.execute(
+            '''SELECT p.*
+               FROM Pictures p
+               JOIN Tagged t ON p.picture_id = t.photo_id
+               JOIN Tags tg ON tg.tag_id = t.tag_id
+               WHERE tg.tag_name IN %s
+                 AND p.user_id != %s
+               GROUP BY p.picture_id
+               ORDER BY COUNT(*) DESC;''', (tuple(top_tags), uid))
+        photos = cursor.fetchall()
+        tags = {}
+        likes = {}
+        comments = {} 
+        if len(photos) >= 1: 
+            for photo in photos:
+                photo_id = photo[0] 
+                tags[photo_id] = getPhotoTag(photo_id)
+                likes[photo_id] = getPictureLikes(photo_id)
+                comments[photo_id] = getPhotoComments(photo_id)
+        # Render the result set on the web page
+        return render_template('youmaylike.html', photos=photos, comments=comments, likes=likes, tags=tags, base64=base64)
 
 #default page
 @app.route("/", methods=['GET'])
