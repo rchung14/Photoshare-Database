@@ -558,64 +558,6 @@ def GrabTags():
 	tags = cursor.fetchall()
 	return tags
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 @app.route('/youmaylike', methods=['GET'])
 @flask_login.login_required
 def youmaylike():
