@@ -149,7 +149,7 @@ def guest_login():
 	hometown='guest'
 	fname='Guest'
 	lname='guest'
-	uid=9999
+	uid=-1
 
 	cursor.execute("INSERT INTO Users (email, gender, password, dob, hometown, fname, lname, user_id) VALUES ('{0}', '{1}', \
 	'{2}', '{3}', '{4}', '{5}', '{6}', '{7}')".format(email, gender, password, dob, hometown, fname, lname, uid))
