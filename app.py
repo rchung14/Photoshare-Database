@@ -138,6 +138,24 @@ def register_user():
 	else:
 		print("couldn't find all tokens")
 		return flask.redirect(flask.url_for('register'))
+	
+
+@app.route('/guest-login', methods=['POST'])
+def guest_login():
+	email='guest@gmail.com'
+	gender='guest'
+	password='guest'
+	dob='2000-01-01'
+	hometown='guest'
+	fname='Guest'
+	lname='guest'
+	uid=9999
+
+	cursor.execute("INSERT INTO Users (email, gender, password, dob, hometown, fname, lname, user_id) VALUES ('{0}', '{1}', \
+	'{2}', '{3}', '{4}', '{5}', '{6}', '{7}')".format(email, gender, password, dob, hometown, fname, lname, uid))
+	conn.commit()
+
+	return render_template('hello.html', name=fname, message='You are now a guest!')
 
 def getUsersPhotos(uid, album_id):
     cursor = conn.cursor()
@@ -495,14 +513,23 @@ def friendslist():
 
 @app.route('/comment', methods=['POST'])
 def comment(): 
-    comment_text = request.form.get('comment')
-    photo_id = request.form.get('photo_id')
-    uid = getUserIdFromEmail(flask_login.current_user.id)
-    commentdate = datetime.now()
-    cursor = conn.cursor()
-    cursor.execute('''INSERT INTO Comments (text, date, user_id, picture_id) VALUES (%s, %s, %s, %s)''', (comment_text, commentdate, uid, photo_id))
-    conn.commit()
-    return redirect(request.referrer)
+	comment_text = request.form.get('comment')
+	photo_id = request.form.get('photo_id')
+	commentdate = datetime.now()
+	cursor = conn.cursor()
+
+	if (flask_login.current_user.is_anonymous):
+		uid = -1
+		cursor.execute('''INSERT INTO Comments (text, date, user_id, picture_id) VALUES (%s, %s, %s, %s)''', (comment_text, commentdate, uid, photo_id))
+		conn.commit()
+		return redirect(request.referrer)
+	else:
+		uid = getUserIdFromEmail(flask_login.current_user.id)
+		cursor.execute('''INSERT INTO Comments (text, date, user_id, picture_id) VALUES (%s, %s, %s, %s)''', (comment_text, commentdate, uid, photo_id))
+		conn.commit()
+		return redirect(request.referrer)
+	
+	return redirect(request.referrer)
 
 @app.route('/search', methods=['GET', 'POST'])
 def search():
