@@ -25,7 +25,8 @@
         <h2>Photos</h2>
         {% if photos %}
           {% for photo in photos %}
-            <li style="list-style: none;">{{photo[2]}}
+          <h4>{{ photo[2] }}</h4>
+            <li style="list-style: none;">
               {% if message %}
                 <h4>{{message}}</h4>
               {% endif %}
