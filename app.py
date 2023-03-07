@@ -13,7 +13,7 @@ app.secret_key = 'hello'  # Change this!
 
 #These will need to be changed according to your creditionals
 app.config['MYSQL_DATABASE_USER'] = 'root'
-app.config['MYSQL_DATABASE_PASSWORD'] = 'Wjddnwls2002!' #'Wjddnwls2002!'
+app.config['MYSQL_DATABASE_PASSWORD'] = 'Wjddnwls2002!'
 app.config['MYSQL_DATABASE_DB'] = 'photoshare'
 app.config['MYSQL_DATABASE_HOST'] = 'localhost'
 mysql.init_app(app)
@@ -138,7 +138,6 @@ def register_user():
 	else:
 		print("couldn't find all tokens")
 		return flask.redirect(flask.url_for('register'))
-	
 
 @app.route('/guest_login', methods=['GET'])
 def guest_login():
@@ -257,13 +256,6 @@ def isEmailUnique(email):
 def protected():
 	return render_template('hello.html', name=flask_login.current_user.id, message="Here's your profile")
 
-#begin photo uploading code
-# photos uploaded using base64 encoding so they can be directly embeded in HTML
-
-# to do:
-# - implement guests being able to like/unlike/comment/etc
-# - visitors and users leave comments (registered + 1 contribution score) 
-
 ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif'])
 def allowed_file(filename):
 	return '.' in filename and filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS
@@ -323,7 +315,6 @@ def album():
 	return render_template('album.html', albums=albums)
 
 @app.route('/albumphoto', methods=['GET'])
-@flask_login.login_required
 def albumphoto():
 	uid = getUserIdFromEmail(flask_login.current_user.id)
 	album_id = request.args.get('album_id')
@@ -420,7 +411,6 @@ def createalbum():
 		return render_template('createalbum.html', albums=albums)
 	
 @app.route('/deletealbum', methods=['POST'])
-@flask_login.login_required
 def deletealbum(): 
     album_id = request.form.get('album_id') 
     cursor = conn.cursor()
@@ -436,7 +426,6 @@ def deletealbum():
     return redirect(url_for('album'))
 
 @app.route('/allalbums', methods=['GET'])
-@flask_login.login_required
 def allalbums():
     cursor = conn.cursor() 
     if flask_login.current_user.is_authenticated:
@@ -448,7 +437,6 @@ def allalbums():
     return render_template('allalbums.html', albums=albums)
 
 @app.route('/deletephoto', methods=['POST'])
-@flask_login.login_required
 def deletephoto(): 
     photo_id = request.form.get('photo_id')
     cursor = conn.cursor()
@@ -462,7 +450,6 @@ def deletephoto():
     return redirect(request.referrer)
 	
 @app.route('/addfriend', methods=['POST'])
-@flask_login.login_required
 def addfriend():
 	if not isEmailUnique(request.form.get('friendemail')):
 		uid = getUserIdFromEmail(flask_login.current_user.id)
@@ -475,7 +462,6 @@ def addfriend():
 	return render_template('friendslist.html',message="User does not exist!")
 
 @app.route('/removefriend', methods=['POST'])
-@flask_login.login_required
 def removefriend():
 	uid = getUserIdFromEmail(flask_login.current_user.id)
 	friend_id = request.form.get('friend_id')
@@ -527,7 +513,6 @@ def comment():
 	return redirect(request.referrer)
 
 @app.route('/search', methods=['GET', 'POST'])
-@flask_login.login_required
 def search():
 	if request.method == 'POST':
 		search_type = request.form['search_type']
@@ -583,7 +568,6 @@ def GrabTags():
 	return tags
 
 @app.route('/youmaylike', methods=['GET'])
-@flask_login.login_required
 def youmaylike():
     uid = getUserIdFromEmail(flask_login.current_user.id)
     cursor = conn.cursor()
@@ -626,7 +610,6 @@ def youmaylike():
         return render_template('youmaylike.html', photos=photos, comments=comments, likes=likes, tags=tags, base64=base64)
 
 @app.route('/search_comment', methods=['GET', 'POST'])
-@flask_login.login_required
 def SearchComments():
 	if request.method == 'POST':
 		comment = request.form.get('comment')
