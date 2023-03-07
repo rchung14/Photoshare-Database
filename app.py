@@ -590,14 +590,18 @@ def youmaylike():
     else:
         # Retrieve all photos in the database that have at least one of the user's top tags
         cursor.execute(
-            '''SELECT p.*
-               FROM Pictures p
-               JOIN Tagged t ON p.picture_id = t.photo_id
-               JOIN Tags tg ON tg.tag_id = t.tag_id
-               WHERE tg.tag_name IN %s
-                 AND p.user_id != %s
-               GROUP BY p.picture_id
-               ORDER BY COUNT(*) DESC;''', (tuple(top_tags), uid))
+				'''SELECT p.*
+				FROM Pictures p
+				JOIN (
+					SELECT photo_id, COUNT(*) AS tag_count
+					FROM Tagged
+					WHERE tag_id IN (
+						SELECT tag_id FROM Tags WHERE tag_name IN %s
+					)
+					GROUP BY photo_id
+				) t ON p.picture_id = t.photo_id
+				WHERE p.user_id != %s
+				ORDER BY t.tag_count DESC''', (tuple(top_tags), uid))
         photos = cursor.fetchall()
         tags = {}
         likes = {}
