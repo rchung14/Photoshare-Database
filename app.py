@@ -13,7 +13,7 @@ app.secret_key = 'hello'  # Change this!
 
 #These will need to be changed according to your creditionals
 app.config['MYSQL_DATABASE_USER'] = 'root'
-app.config['MYSQL_DATABASE_PASSWORD'] = 'kenny123' #'Wjddnwls2002!'
+app.config['MYSQL_DATABASE_PASSWORD'] = 'Wjddnwls2002!' #'Wjddnwls2002!'
 app.config['MYSQL_DATABASE_DB'] = 'photoshare'
 app.config['MYSQL_DATABASE_HOST'] = 'localhost'
 mysql.init_app(app)
@@ -247,8 +247,6 @@ def protected():
 # to do:
 # - implement guests being able to like/unlike/comment/etc
 # - visitors and users leave comments (registered + 1 contribution score) 
-# - users should be able to search for photos with comments --> displays names of users ordered by the number of comments that match the query in descending order
-# - you-may-also like --> take 3 tags most used by uploaded photo owner and provide similar photos to theirs --> 3 same tags takes priority, then 2, then 1...
 
 ALLOWED_EXTENSIONS = set(['png', 'jpg', 'jpeg', 'gif'])
 def allowed_file(filename):
@@ -349,7 +347,6 @@ def visitoralbumphoto():
 
 @app.route('/like', methods=['POST'])
 def like():
-	album_id = request.args.get('album_id')
 	photo_id = request.form.get('photo_id')
 	if flask_login.current_user.is_authenticated:
 		uid = getUserIdFromEmail(flask_login.current_user.id)
