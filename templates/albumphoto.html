@@ -42,7 +42,6 @@
         {% endif %}
         <br>
         <br>
-        <!-- dynamic like/unlike button try ifelse after use cases -->  
         <form action="/like" method="POST">
           <input type="hidden" name="album_id" value="{{ album_id }}">
           <input type="hidden" name="photo_id" value="{{ photo[1] }}">
@@ -64,12 +63,6 @@
         {% else %}
           <p>No comments yet.</p>
         {% endif %}
-        <form action="/comment" method="POST">
-          <label for="comment">Comment:</label><br>
-          <textarea id="comment" name="comment" rows="1" cols="30"></textarea><br>
-          <input type="hidden" name="photo_id" value="{{ photo[1] }}">
-          <input type="submit" value="Post Comment">
-        </form>
       </li>
       <hr>
       <br>
