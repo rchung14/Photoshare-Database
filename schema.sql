@@ -8,12 +8,12 @@ DROP TABLE IF EXISTS Tagged CASCADE;
 DROP TABLE IF EXISTS Likes CASCADE;
 
 CREATE TABLE Users (
-    user_id int4  AUTO_INCREMENT,
-    gender VARCHAR(6), 
-    email varchar(255) UNIQUE,
-    password varchar(255) NOT NULL,
-    dob DATE NOT NULL, 
-    hometown VARCHAR(40), 
+  user_id int4  AUTO_INCREMENT,
+  gender VARCHAR(6), 
+  email varchar(255) UNIQUE,
+  password varchar(255) NOT NULL,
+  dob DATE NOT NULL, 
+  hometown VARCHAR(40), 
 	fname VARCHAR(40) NOT NULL, 
 	lname VARCHAR(40) NOT NULL, 
   CONSTRAINT users_pk PRIMARY KEY (user_id)

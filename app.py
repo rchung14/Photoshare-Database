@@ -352,22 +352,25 @@ def visitoralbumphoto():
 					album_id=album_id, photos=photos, comments=comments, \
 						  tags=tags, username=username, likes=likes, base64=base64)
 
+#likes/unlikes/comments
 @app.route('/like', methods=['POST'])
 def like():
-	photo_id = request.form.get('photo_id')
-	if flask_login.current_user.is_authenticated:
+	if not flask_login.current_user.is_anonymous:
+		photo_id = request.form.get('photo_id')
 		uid = getUserIdFromEmail(flask_login.current_user.id)
-	else:
-		uid = -1
-	# Check if user has liked this photo before
-	cursor = conn.cursor()
-	cursor.execute('''SELECT * FROM Likes WHERE user_id = %s AND picture_id = %s''', (uid, photo_id))
-	if cursor.fetchone() is not None:
+		# Check if user has liked this photo before
+		cursor = conn.cursor()
+		cursor.execute('''SELECT * FROM Likes WHERE user_id = %s AND picture_id = %s''', (uid, photo_id))
+		if cursor.fetchone() is not None:
+			return redirect(request.referrer)
+		# Add user and photo_id to Likes table
+		cursor.execute('''INSERT INTO Likes (user_id, picture_id) VALUES (%s, %s)''', (uid, photo_id))
+		conn.commit()
 		return redirect(request.referrer)
-	# Add user and photo_id to Likes table
-	cursor.execute('''INSERT INTO Likes (user_id, picture_id) VALUES (%s, %s)''', (uid, photo_id))
-	conn.commit()
-	return redirect(request.referrer)
+	else: 
+		photo_id = request.form.get('photo_id')
+		
+		return redirect(request.referrer)
 
 @app.route('/unlike', methods=['POST'])
 def unlike(): 
@@ -418,9 +421,7 @@ def deletealbum():
                         SELECT DISTINCT tag_id FROM Tagged
                         WHERE photo_id IN (
                             SELECT picture_id FROM Pictures
-                            WHERE album_id = %s
-                        )
-                    )''', (album_id,))
+                            WHERE album_id = %s))''', (album_id,))
     cursor.execute('''DELETE FROM Albums WHERE album_id = %s''', (album_id,))
     conn.commit()
     return redirect(url_for('album'))
@@ -509,8 +510,6 @@ def comment():
 		cursor.execute('''INSERT INTO Comments (text, date, user_id, picture_id) VALUES (%s, %s, %s, %s)''', (comment_text, commentdate, uid, photo_id))
 		conn.commit()
 		return redirect(request.referrer)
-	
-	return redirect(request.referrer)
 
 @app.route('/search', methods=['GET', 'POST'])
 def search():
@@ -528,6 +527,7 @@ def search():
 				if photo_id not in photos_dict:
 					photos_dict[photo_id] = row
 			photos = list(photos_dict.values())
+			abletocomment = True
 		elif search_type == 'tag_user':
 			# Get photos of current user with tags
 			cursor = conn.cursor()
@@ -539,11 +539,13 @@ def search():
 				if photo_id not in photos_dict:
 					photos_dict[photo_id] = row
 			photos = list(photos_dict.values())
+			abletocomment = False
 		elif search_type == 'comments':
 			# Get all photos with matching comments
 			cursor = conn.cursor()
 			cursor.execute('SELECT p.*, u.user_id FROM Pictures p JOIN Comments c ON p.picture_id = c.picture_id JOIN Users u ON p.user_id = u.user_id WHERE c.text LIKE %s', ('%' + query + '%',))
 			photos = cursor.fetchall()
+			abletocomment = True
 		tags = {}
 		likes = {}
 		comments = {} 
@@ -553,7 +555,7 @@ def search():
 				tags[photo_id] = getPhotoTag(photo_id)
 				likes[photo_id] = getPictureLikes(photo_id)
 				comments[photo_id] = getPhotoComments(photo_id)
-		return render_template('search.html', photos=photos, tags=tags, comments=comments, likes=likes, base64=base64)
+		return render_template('search.html', photos=photos, tags=tags, abletocomment=abletocomment, comments=comments, likes=likes, base64=base64)
 	else:
 		return render_template('search.html')
 	

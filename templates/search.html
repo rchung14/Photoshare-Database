@@ -68,12 +68,14 @@
               {% else %}
                 <p>No comments yet.</p>
               {% endif %}
-              <form action="/comment" method="POST">
-                <label for="comment">Comment:</label><br>
-                <textarea id="comment" name="comment" rows="1" cols="30"></textarea><br>
-                <input type="hidden" name="photo_id" value="{{ photo[0] }}">
-                <input type="submit" value="Post Comment">
-              </form>
+              {% if abletocomment %}
+                <form action="/comment" method="POST">
+                  <label for="comment">Comment:</label><br>
+                  <textarea id="comment" name="comment" rows="1" cols="30"></textarea><br>
+                  <input type="hidden" name="photo_id" value="{{ photo[0] }}">
+                  <input type="submit" value="Post Comment">
+                </form>
+              {% endif %}
             </li>
             <hr>
             <br>
