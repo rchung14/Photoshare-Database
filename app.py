@@ -262,19 +262,23 @@ def allowed_file(filename):
 
 @app.route('/contribution', methods=['GET'])
 def contribution():
-	contribution = {}
-	allusers = getAllUsers()
-	for user in allusers: 
-		fname, lname = getUsersName(user)
-		cursor = conn.cursor()
-		# count uploaded photos
-		cursor.execute('''SELECT COUNT(*) FROM Pictures WHERE user_id = %s''', (user,))
-		photocount = cursor.fetchone()[0]
-		cursor.execute('''SELECT COUNT(*) FROM Comments c JOIN Pictures p ON c.picture_id = p.picture_id WHERE c.user_id = %s AND p.user_id <> %s''', (user, user,))
-		commentcount = cursor.fetchone()[0]
-		contribution[f"{fname} {lname}"] = photocount + commentcount
-	sorted_contribution = dict(sorted(contribution.items(), key=lambda x: x[1], reverse=True)[:10])
-	return render_template('contribution.html', sorted_contribution=sorted_contribution)
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT u.user_id, u.fname, u.lname, COUNT(DISTINCT p.picture_id) + COUNT(DISTINCT c.comment_id) AS contribution_score
+        FROM Users u
+        LEFT JOIN Pictures p ON p.user_id = u.user_id
+        LEFT JOIN Comments c ON c.user_id = u.user_id AND c.picture_id != p.picture_id
+        GROUP BY u.user_id
+        ORDER BY contribution_score DESC
+        LIMIT 3''')
+    rows = cursor.fetchall()
+    contribution = []
+    for row in rows:
+        user = {} 
+        user['name'] = f"{row[1]} {row[2]}"
+        user['contribution_score'] = row[3]
+        contribution.append(user)
+    return render_template('contribution.html', contribution=contribution)
 
 #uploading a photo
 @app.route('/upload', methods=['GET', 'POST'])
@@ -355,22 +359,17 @@ def visitoralbumphoto():
 #likes/unlikes/comments
 @app.route('/like', methods=['POST'])
 def like():
-	if not flask_login.current_user.is_anonymous:
-		photo_id = request.form.get('photo_id')
-		uid = getUserIdFromEmail(flask_login.current_user.id)
-		# Check if user has liked this photo before
-		cursor = conn.cursor()
-		cursor.execute('''SELECT * FROM Likes WHERE user_id = %s AND picture_id = %s''', (uid, photo_id))
-		if cursor.fetchone() is not None:
-			return redirect(request.referrer)
-		# Add user and photo_id to Likes table
-		cursor.execute('''INSERT INTO Likes (user_id, picture_id) VALUES (%s, %s)''', (uid, photo_id))
-		conn.commit()
+	photo_id = request.form.get('photo_id')
+	uid = getUserIdFromEmail(flask_login.current_user.id)
+	# Check if user has liked this photo before
+	cursor = conn.cursor()
+	cursor.execute('''SELECT * FROM Likes WHERE user_id = %s AND picture_id = %s''', (uid, photo_id))
+	if cursor.fetchone() is not None:
 		return redirect(request.referrer)
-	else: 
-		photo_id = request.form.get('photo_id')
-		
-		return redirect(request.referrer)
+	# Add user and photo_id to Likes table
+	cursor.execute('''INSERT INTO Likes (user_id, picture_id) VALUES (%s, %s)''', (uid, photo_id))
+	conn.commit()
+	return redirect(request.referrer)
 
 @app.route('/unlike', methods=['POST'])
 def unlike(): 
@@ -499,17 +498,10 @@ def comment():
 	photo_id = request.form.get('photo_id')
 	commentdate = datetime.now()
 	cursor = conn.cursor()
-
-	if (flask_login.current_user.is_anonymous):
-		uid = -1
-		cursor.execute('''INSERT INTO Comments (text, date, user_id, picture_id) VALUES (%s, %s, %s, %s)''', (comment_text, commentdate, uid, photo_id))
-		conn.commit()
-		return redirect(request.referrer)
-	else:
-		uid = getUserIdFromEmail(flask_login.current_user.id)
-		cursor.execute('''INSERT INTO Comments (text, date, user_id, picture_id) VALUES (%s, %s, %s, %s)''', (comment_text, commentdate, uid, photo_id))
-		conn.commit()
-		return redirect(request.referrer)
+	uid = getUserIdFromEmail(flask_login.current_user.id)
+	cursor.execute('''INSERT INTO Comments (text, date, user_id, picture_id) VALUES (%s, %s, %s, %s)''', (comment_text, commentdate, uid, photo_id))
+	conn.commit()
+	return redirect(request.referrer)
 
 @app.route('/search', methods=['GET', 'POST'])
 def search():

@@ -6,8 +6,8 @@
 <body>
 	<h1>Top Contributors</h1>
 	<ul>
-		{% for user in sorted_contribution %}
-			<li>{{ user }}: {{ sorted_contribution[user] }}</li>
+		{% for user in contribution %}
+			<li>{{ user['name'] }}: {{ user['contribution_score'] }}</li>
 		{% endfor %}
 	</ul>
     <br>
