@@ -1,5 +1,5 @@
 import flask
-from flask import Flask, Response, request, render_template, redirect, url_for
+from flask import Flask, flash, Response, request, render_template, redirect, url_for
 from flaskext.mysql import MySQL
 import flask_login
 from datetime import datetime
@@ -122,7 +122,6 @@ def register_user():
 		fname=request.form.get('fname')
 		lname=request.form.get('lname')
 	except:
-		print("couldn't find all tokens") #this prints to shell, end users will not see this (all print statements go to shell)
 		return flask.redirect(flask.url_for('register'))
 	cursor = conn.cursor()
 	test =  isEmailUnique(email)
@@ -136,7 +135,7 @@ def register_user():
 		flask_login.login_user(user)
 		return render_template('hello.html', name=fname, message='Account Created!')
 	else:
-		print("couldn't find all tokens")
+		flash('The email address you entered is already in use. Please try a different email address.')
 		return flask.redirect(flask.url_for('register'))
 
 @app.route('/guest_login', methods=['GET'])
