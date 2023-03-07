@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search a comment made by a user!</title>
+</head>
+
+<body>
+    <h1>Search for specific user's comments</h1>
+    <form action="/search_comment" method="post">
+        <p>Type the EXACT comment made by a user to find them!</p>
+        <p><input type="text" name="comment" required="true" /></p>
+        <p><input type="submit" value="Search" /></p>
+    </form>
+
+    {% if message %}
+    <p>{{message}}</p>
+    {% endif %}
+
+    {% if comments %}
+    <ul>
+    {% for user in comments %}
+        <li>{{user[0] + " " + user[1]}}</li>
+    {% endfor %}
+    </ul>
+    {% endif %}
+
+    <ul>
+        <li><a href='/logout'>Logout</a></li>
+        <li><a href='/'>Home</a></li>
+    </ul>
+</body>
+</html>
